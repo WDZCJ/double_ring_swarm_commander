@@ -1,0 +1,47 @@
+# === 环境与密钥 ===
+.env
+.env.local
+.env.*.local
+
+# === IDE / 本地配置 ===
+.idea/
+.vscode/
+.trae/
+
+# === Python 构建 / 缓存 ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# === 虚拟环境 ===
+.venv/
+venv/
+
+# === 本地日志 / 临时 ===
+*.log
+C:\Users\61646\AppData\Local\Temp\
+*.tmp
+
+# === 非代码 / 设计稿 ===
+*.pptx
+*.ppt
+*.doc
+*.docx
+*.pdf
+*.md
+
+# 特别说明：根目录下的 "推进思路.md" / "任务调度引擎-双环决策架构.pptx"
+# 属于内部设计文档，不纳入仓库
+推进思路.md
+任务调度引擎-双环决策架构.pptx
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === 运行产物 ===
+munitions.db
+*.sqlite

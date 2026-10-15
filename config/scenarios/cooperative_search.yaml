@@ -1,0 +1,29 @@
+name: cooperative_search
+description: 18 发分 A/B 两组搜东西两区，B 组提前完成
+grid_dim: [40, 40, 8]
+munitions:
+  # A 组 9 发搜索西区
+  - {id: A-M1, role: search, position: [0, 0, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M2, role: search, position: [1, 0, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M3, role: search, position: [2, 0, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M4, role: search, position: [0, 1, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M5, role: search, position: [1, 1, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M6, role: search, position: [2, 1, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M7, role: search, position: [0, 2, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M8, role: search, position: [1, 2, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: A-M9, role: search, position: [2, 2, 0], state: idle, fuel: 100.0, target_zone: Z1}
+  # B 组 9 发搜索东区
+  - {id: B-M1, role: search, position: [30, 30, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M2, role: search, position: [31, 30, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M3, role: search, position: [32, 30, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M4, role: search, position: [30, 31, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M5, role: search, position: [31, 31, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M6, role: search, position: [32, 31, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M7, role: search, position: [30, 32, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M8, role: search, position: [31, 32, 0], state: idle, fuel: 100.0, target_zone: Z2}
+  - {id: B-M9, role: search, position: [32, 32, 0], state: idle, fuel: 100.0, target_zone: Z2}
+threats: []
+zones:
+  - {id: Z1, bounds: [0, 20, 0, 20, 0, 8], coverage: 0.0}
+  - {id: Z2, bounds: [20, 40, 20, 40, 0, 8], coverage: 0.0}
+events: []

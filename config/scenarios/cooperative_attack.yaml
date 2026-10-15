@@ -1,0 +1,13 @@
+name: cooperative_attack
+description: A 弹前出诱饵，B 弹盘旋等待，根据 A 的状态决策规避/绕路/取消
+grid_dim: [40, 40, 8]
+munitions:
+  - {id: A, role: decoy, position: [0, 10, 2], state: idle, fuel: 100.0, target_zone: Z1}
+  - {id: B, role: strike, position: [5, 5, 1], state: idle, fuel: 100.0, target_zone: Z1}
+threats:
+  - {id: T1, kind: sam, position: [20, 15, 2], lethality: [5, 3, 1]}
+  - {id: T2, kind: radar, position: [18, 12, 3], lethality: [2, 1, 0]}
+zones:
+  - {id: Z1, bounds: [0, 30, 0, 30, 0, 8], coverage: 0.0}
+events:
+  - {type: damage, munition_id: A, tick: 8}

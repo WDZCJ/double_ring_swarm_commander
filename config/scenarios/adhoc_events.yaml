@@ -1,0 +1,19 @@
+name: adhoc_events
+description: 编组缺员+目标消失+部分失联三连发
+grid_dim: [40, 40, 8]
+munitions:
+  - {id: G1-M1, role: strike, position: [0, 0, 0], state: idle, fuel: 90.0, target_zone: Z1}
+  - {id: G1-M2, role: strike, position: [1, 0, 0], state: idle, fuel: 90.0, target_zone: Z1}
+  - {id: G1-M3, role: strike, position: [2, 0, 0], state: idle, fuel: 90.0, target_zone: Z1}
+  - {id: G2-M1, role: search, position: [20, 20, 0], state: idle, fuel: 80.0, target_zone: Z2}
+  - {id: G2-M2, role: search, position: [21, 20, 0], state: idle, fuel: 80.0, target_zone: Z2}
+  - {id: G2-M3, role: search, position: [22, 20, 0], state: idle, fuel: 80.0, target_zone: Z2}
+threats:
+  - {id: T1, kind: sam, position: [10, 10, 2], lethality: [4, 2, 1]}
+zones:
+  - {id: Z1, bounds: [0, 15, 0, 15, 0, 8], coverage: 0.0}
+  - {id: Z2, bounds: [15, 40, 15, 40, 0, 8], coverage: 0.0}
+events:
+  - {type: damage, munition_id: G1-M1, tick: 10}
+  - {type: intel_update, target_id: T1, status: disappeared, tick: 20}
+  - {type: comm_loss, munition_ids: [G2-M1, G2-M2], tick: 30}

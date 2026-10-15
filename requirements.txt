@@ -1,0 +1,13 @@
+# 智能巡飞弹集群决策系统 — Python 依赖
+#
+# 不引入 langchain/autogen，保持 Agent 层薄、可审计（军事可追溯性硬需求）。
+
+openai>=1.40.0          # OpenAI 兼容协议，可适配 DeepSeek/通义/智谱
+pydantic>=2.7           # 数据模型校验（后续 Protocol 边界使用）
+pyyaml>=6.0             # config.yaml + scenario YAML 解析
+python-dotenv>=1.0      # .env 加载
+httpx>=0.27             # Jev 真实 HTTP client（mock 模式不需要）
+rich>=13.7             # CLI 彩色轨迹输出
+pytest>=8.2            # 单测框架（P1+ 单测使用）
+pytest-mock>=3.14       # pytest mocker fixture
+hypothesis>=6.103       # 属性测试（威胁向量非空、长度恒 3 等不变量）

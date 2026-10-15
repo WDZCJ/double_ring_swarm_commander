@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双环Agent架构 · 实时可视化</title>
+    <style>
+        :root {
+            --surface: #F7F7F8;
+            --surface-muted: #EFEFF2;
+            --text: #171717;
+            --text-muted: #52525B;
+            --border: rgba(23, 23, 23, 0.12);
+            --brand: #0FDC78;
+            --brand-soft: #E5FFF2;
+            --brand-text: #004D26;
+            --brand-on: #004D26;
+            --chart-series-1: #02743B;
+            --chart-series-2: #85FABF;
+            --chart-series-3: #0FDC78;
+            --chart-series-4: #80C1FF;
+            --accent: #27D2BF;
+            --accent-soft: #EAFBF8;
+            --accent-text: #0F766E;
+            --success: #1DC981;
+            --warning: #EFAA17;
+            --danger: #E8463A;
+            --radius: 8px;
+            --radius-card: 12px;
+            --radius-full: 999px;
+            --font-sans: "SF Pro Text", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --surface: #171717;
+                --surface-muted: #262626;
+                --text: #E5E5E5;
+                --text-muted: #A1A1AA;
+                --border: rgba(229, 229, 229, 0.12);
+                --brand: #32F08C;
+                --brand-soft: #004D26;
+                --brand-text: #E5FFF2;
+                --brand-on: #004D26;
+                --chart-series-1: #32F08C;
+                --chart-series-2: #02743B;
+                --chart-series-3: #0AB861;
+                --chart-series-4: #64B4FF;
+                --accent-soft: #123F3C;
+                --accent-text: #CCFBF1;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--surface-muted);
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .app {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header .badge {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--brand-text);
+            background: var(--brand-soft);
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--brand);
+        }
+
+        /* Panel */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--surface-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        /* Situation Layout */
+        .situation-layout {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 16px;
+        }
+
+        .map-container {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-muted);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #mapCanvas {
+            display: block;
+            width: 100%;
+            height: 420px;
+            background: var(--surface-muted);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .info-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+
+        .info-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--surface-muted);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--brand);
+            border-radius: var(--radius-full);
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.secondary {
+            background: var(--chart-series-4);
+        }
+
+        .munition-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .munition-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .munition-item:last-child {
+            border-bottom: none;
+        }
+
+        .munition-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            flex-shrink: 0;
+        }
+
+        .munition-dot.searching { background: var(--brand); }
+        .munition-dot.engaging { background: var(--warning); }
+        .munition-dot.destroyed { background: var(--danger); }
+        .munition-dot.idle { background: var(--text-muted); }
+        .munition-dot.returning { background: var(--chart-series-4); }
+
+        .munition-name {
+            font-family: var(--font-mono);
+            font-weight: 500;
+            min-width: 50px;
+        }
+
+        .munition-status {
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        /* Flow Layout */
+        .flow-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .flow-section {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .flow-header {
+            padding: 8px 12px;
+            background: var(--surface-muted);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+        }
+
+        .flow-header .dot.llm { background: var(--brand); }
+        .flow-header .dot.jev { background: var(--accent); }
+
+        .flow-content {
+            padding: 12px;
+            flex: 1;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        /* LLM Timeline */
+        .llm-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .llm-round {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px;
+            background: var(--surface);
+        }
+
+        .llm-round.active {
+            border-color: var(--brand);
+            background: var(--brand-soft);
+        }
+
+        .llm-round-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .llm-round-num {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--brand-text);
+            background: var(--brand-soft);
+            padding: 2px 6px;
+            border-radius: var(--radius);
+        }
+
+        .llm-round.active .llm-round-num {
+            background: var(--brand);
+            color: var(--brand-on);
+        }
+
+        .llm-round-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .llm-content {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text);
+            margin-bottom: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .llm-content:empty {
+            display: none;
+        }
+
+        .llm-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .tool-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--surface-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+        }
+
+        .llm-plan-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--brand-text);
+            background: var(--brand-soft);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            margin-top: 6px;
+        }
+
+        /* Jev Tasks */
+        .jev-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .jev-task {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px;
+            background: var(--surface);
+        }
+
+        .jev-task.escalated {
+            border-color: var(--warning);
+            background: color-mix(in srgb, var(--warning) 5%, var(--surface));
+        }
+
+        .jev-task-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .jev-task-id {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .jev-task-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: var(--radius);
+        }
+
+        .jev-task-status.active {
+            background: var(--brand-soft);
+            color: var(--brand-text);
+        }
+
+        .jev-task-status.escalated {
+            background: color-mix(in srgb, var(--warning) 20%, transparent);
+            color: var(--warning);
+        }
+
+        .jev-task-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .branch-options {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .branch-btn {
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: default;
+            transition: all 0.2s;
+        }
+
+        .branch-btn.selected {
+            background: var(--brand);
+            color: var(--brand-on);
+            border-color: var(--brand);
+            font-weight: 500;
+        }
+
+        .jev-confidence {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .jev-confidence.high {
+            color: var(--brand-text);
+        }
+
+        .jev-confidence.low {
+            color: var(--danger);
+        }
+
+        /* Connection Status */
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .conn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            background: var(--danger);
+        }
+
+        .conn-dot.connected {
+            background: var(--brand);
+        }
+
+        /* Responsive */
+        @media (max-width: 960px) {
+            .situation-layout,
+            .flow-layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            .info-card {
+                flex: 1;
+                min-width: 200px;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--surface-muted);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: var(--radius-full);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Map controls */
+        .map-container {
+            position: relative;
+        }
+        .map-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 10;
+        }
+        .map-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .map-btn:hover {
+            background: var(--surface-muted);
+        }
+        .map-zoom-level {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 2px 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        #mapCanvas {
+            cursor: grab;
+        }
+        #mapCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Jev question detail */
+        .jev-questions {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+        }
+        .jev-question {
+            margin-bottom: 8px;
+            padding: 6px 8px;
+            background: var(--surface-muted);
+            border-radius: var(--radius);
+            font-size: 12px;
+        }
+        .jev-question-type {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: var(--radius);
+            margin-right: 6px;
+            text-transform: uppercase;
+        }
+        .jev-question-type.noul { background: #E3F2FD; color: #1565C0; }
+        .jev-question-type.choice { background: #E8F5E9; color: #2E7D32; }
+        .jev-question-type.score { background: #FFF3E0; color: #E65100; }
+        .jev-question-prompt {
+            color: var(--text);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+        .jev-question-answer {
+            margin-top: 6px;
+            padding: 4px 8px;
+            border-radius: var(--radius);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .jev-question-answer.highlight {
+            background: var(--brand-soft);
+            color: var(--brand-text);
+            border: 1px solid var(--brand);
+        }
+        .jev-question-answer.normal {
+            background: var(--surface);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .jev-options {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .jev-option {
+            padding: 2px 8px;
+            border-radius: var(--radius);
+            font-size: 11px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .jev-option.chosen {
+            background: var(--brand);
+            color: var(--brand-on);
+            border-color: var(--brand);
+            font-weight: 600;
+        }
+        @media (prefers-color-scheme: dark) {
+            .jev-question-type.noul { background: #0D47A1; color: #BBDEFB; }
+            .jev-question-type.choice { background: #1B5E20; color: #C8E6C9; }
+            .jev-question-type.score { background: #E65100; color: #FFE0B2; }
+        }
+
+        /* === 运行控制面板 === */
+        .ctrl-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .ctrl-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ctrl-group-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ctrl-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ctrl-row input[type="text"],
+        .ctrl-row select {
+            flex: 1;
+            min-width: 120px;
+            padding: 7px 10px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            outline: none;
+        }
+        .ctrl-row input[type="text"]:focus,
+        .ctrl-row select:focus {
+            border-color: var(--brand);
+        }
+        .ctrl-row input[type="text"]::placeholder {
+            color: var(--text-muted);
+        }
+        .btn {
+            padding: 7px 14px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+        }
+        .btn:hover:not(:disabled) {
+            background: var(--surface-muted);
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .btn.primary {
+            background: var(--brand);
+            color: var(--brand-on);
+            border-color: var(--brand);
+            font-weight: 500;
+        }
+        .btn.primary:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--brand) 85%, #000);
+        }
+        .btn.danger {
+            color: var(--danger);
+            border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+        }
+        .btn.danger:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+        }
+        .ctrl-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .status-pill {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: var(--radius-full);
+            background: var(--surface-muted);
+            border: 1px solid var(--border);
+        }
+        .status-pill.running {
+            background: var(--brand-soft);
+            color: var(--brand-text);
+            border-color: var(--brand);
+        }
+        .status-pill.paused {
+            background: color-mix(in srgb, var(--warning) 15%, var(--surface));
+            color: var(--warning);
+            border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+        }
+        .status-pill.safe {
+            background: color-mix(in srgb, var(--danger) 15%, var(--surface));
+            color: var(--danger);
+            border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+        }
+        .ctrl-msg {
+            margin-top: 12px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            min-height: 16px;
+            word-break: break-all;
+        }
+        .ctrl-msg.ok { color: var(--brand-text); }
+        .ctrl-msg.err { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1>双环Agent架构 · 实时可视化</h1>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="conn-status">
+                    <span class="conn-dot" id="connDot"></span>
+                    <span id="connText">未连接</span>
+                </div>
+                <span class="badge" id="tickBadge">TICK ---</span>
+            </div>
+        </div>
+
+        <!-- 运行控制面板 -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">运行控制</span>
+                <div class="ctrl-status">
+                    <span>场景</span>
+                    <span class="status-pill" id="ctrlScenario">-</span>
+                    <span class="status-pill" id="ctrlRunState">未运行</span>
+                    <span class="status-pill" id="ctrlSpeedPill">1.0x</span>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="ctrl-grid">
+                    <div class="ctrl-group">
+                        <div class="ctrl-group-title">场景加载</div>
+                        <div class="ctrl-row">
+                            <select id="scenarioSelect"><option>加载中...</option></select>
+                            <button class="btn" id="btnLoadScenario">加载场景</button>
+                        </div>
+                        <div class="ctrl-row">
+                            <button class="btn primary" id="btnStart">启动任务</button>
+                        </div>
+                    </div>
+
+                    <div class="ctrl-group">
+                        <div class="ctrl-group-title">运行控制</div>
+                        <div class="ctrl-row">
+                            <button class="btn" id="btnPause">暂停</button>
+                            <button class="btn" id="btnResume">恢复</button>
+                            <button class="btn danger" id="btnStop">停止</button>
+                        </div>
+                        <div class="ctrl-row">
+                            <label style="font-size:12px;color:var(--text-muted);">倍速</label>
+                            <select id="speedSelect" style="flex:0 0 auto;min-width:90px;">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1.0x</option>
+                                <option value="2">2.0x</option>
+                                <option value="4">4.0x</option>
+                                <option value="8">8.0x</option>
+                            </select>
+                            <button class="btn danger" id="btnSafeMode">强制安全模式</button>
+                        </div>
+                    </div>
+
+                    <div class="ctrl-group">
+                        <div class="ctrl-group-title">交互 · 下发新任务（replace）</div>
+                        <div class="ctrl-row">
+                            <input type="text" id="intentInput" placeholder="新的指挥员意图，将覆盖现有计划并重规划">
+                            <button class="btn primary" id="btnNewIntent">下发新任务</button>
+                        </div>
+                        <div class="ctrl-row">
+                            <select id="eventType" style="flex:0 0 auto;min-width:120px;">
+                                <option value="damage">弹损毁 damage</option>
+                                <option value="comm_loss">通信失联 comm_loss</option>
+                                <option value="intel_update">情报更新 intel_update</option>
+                            </select>
+                            <input type="text" id="eventParams" placeholder="弹ID（多个用逗号分隔）">
+                            <button class="btn" id="btnInjectEvent">注入事件</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ctrl-msg" id="ctrlMsg"></div>
+            </div>
+        </div>
+
+        <!-- 全局态势面板 -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">全局态势</span>
+                <span style="font-size: 12px; color: var(--text-muted);" id="phaseLabel">初始化</span>
+            </div>
+            <div class="panel-body">
+                <div class="situation-layout">
+                    <div class="map-container">
+                        <canvas id="mapCanvas"></canvas>
+                        <div class="map-controls">
+                            <button class="map-btn" onclick="zoomMap(1.2)" title="放大">+</button>
+                            <div class="map-zoom-level" id="zoomLevel">100%</div>
+                            <button class="map-btn" onclick="zoomMap(0.8)" title="缩小">-</button>
+                            <button class="map-btn" onclick="resetMapView()" title="重置视图">R</button>
+                        </div>
+                    </div>
+                    <div class="sidebar">
+                        <div class="info-card">
+                            <div class="info-title">区域覆盖率</div>
+                            <div id="zoneCoverage">
+                                <div class="empty-state">等待数据...</div>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-title">巡飞弹状态</div>
+                            <div class="munition-list" id="munitionList">
+                                <div class="empty-state">等待数据...</div>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-title">威胁</div>
+                            <div id="threatList">
+                                <div class="empty-state">无威胁</div>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-title">当前计划</div>
+                            <div class="stat-row">
+                                <span class="stat-label">版本</span>
+                                <span class="stat-value" id="planVersion">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">重规划</span>
+                                <span class="stat-value" id="replanCount">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">阶段</span>
+                                <span class="stat-value" id="planPhase">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 筹划流程面板 -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">筹划流程监控</span>
+                <span style="font-size: 12px; color: var(--text-muted);">双环架构 · 实时同步</span>
+            </div>
+            <div class="panel-body">
+                <div class="flow-layout">
+                    <!-- LLM Section -->
+                    <div class="flow-section">
+                        <div class="flow-header">
+                            <span class="dot llm"></span>
+                            <span>外环 · LLM ReAct 循环</span>
+                            <span style="margin-left: auto; font-family: var(--font-mono); color: var(--brand-text);" id="llmRoundLabel">Round -</span>
+                        </div>
+                        <div class="flow-content">
+                            <div class="llm-timeline" id="llmTimeline">
+                                <div class="empty-state">等待 LLM 规划...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jev Section -->
+                    <div class="flow-section">
+                        <div class="flow-header">
+                            <span class="dot jev"></span>
+                            <span>内环 · Jev 监控任务</span>
+                            <span style="margin-left: auto; font-size: 11px; color: var(--text-muted);" id="jevTaskCount">0 个任务</span>
+                        </div>
+                        <div class="flow-content">
+                            <div class="jev-tasks" id="jevTasks">
+                                <div class="empty-state">暂无监控任务</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 连接管理：优先 WebSocket，失败自动降级 SSE
+        let ws = null;
+        let eventSource = null;
+        let reconnectTimer = null;
+        let useSSE = false;
+
+        function setConnected(connected, protocol) {
+            document.getElementById('connDot').className = 'conn-dot' + (connected ? ' connected' : '');
+            document.getElementById('connText').textContent = connected ? `已连接 (${protocol})` : '未连接';
+        }
+
+        function connect() {
+            if (useSSE) {
+                connectSSE();
+                return;
+            }
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.onopen = () => {
+                setConnected(true, 'WS');
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
+            };
+
+            ws.onclose = () => {
+                setConnected(false);
+                if (!useSSE) {
+                    // 3秒后尝试重连 WebSocket，连续失败后降级 SSE
+                    reconnectTimer = setTimeout(connect, 3000);
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                ws.close();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+
+            // 5秒超时未连接成功则降级到 SSE
+            setTimeout(() => {
+                if (ws && ws.readyState !== WebSocket.OPEN) {
+                    console.log('WebSocket timeout, falling back to SSE');
+                    ws.close();
+                    useSSE = true;
+                    connect();
+                }
+            }, 5000);
+        }
+
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            eventSource = new EventSource('/events');
+
+            eventSource.onopen = () => {
+                setConnected(true, 'SSE');
+            };
+
+            eventSource.onerror = () => {
+                setConnected(false);
+                eventSource.close();
+                // SSE 也失败，5秒后重试
+                reconnectTimer = setTimeout(connect, 5000);
+            };
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'init':
+                    if (data.grid_dim) {
+                        gridDim = data.grid_dim;
+                        console.log('Grid dim set to:', gridDim);
+                    }
+                    break;
+                case 'tick':
+                    updateTick(data);
+                    break;
+                case 'llm_round':
+                    addLLMRound(data);
+                    break;
+                case 'jev_call':
+                    addJevCall(data);
+                    break;
+                case 'plan':
+                    updatePlan(data);
+                    break;
+                case 'monitoring_tasks':
+                    updateMonitoringTasks(data.tasks);
+                    break;
+                case 'escalation':
+                    addEscalation(data);
+                    break;
+                case 'phase':
+                    updatePhase(data.phase);
+                    break;
+                case 'run_end':
+                    updateCtrlStatus({running: false, paused: false, safe_mode: !!data.safe_mode});
+                    setMsg(`运行结束：${data.phase}`, data.phase === 'error' ? 'err' : 'ok');
+                    break;
+                case 'event_injected':
+                    setMsg(`已注入事件：${data.event_type}${data.munition_id ? ' ' + data.munition_id : ''}（下一 tick 生效并触发重规划）`, 'ok');
+                    break;
+                case 'event_fired':
+                    setMsg(`事件已生效：${data.event_type}${data.munition_id ? ' ' + data.munition_id : ''}`, 'ok');
+                    break;
+                case 'replanned':
+                    setMsg(`已重规划：${data.reason} → plan_v${data.plan_version}`, 'ok');
+                    break;
+                case 'intent_replaced':
+                    setMsg(`新任务已下发：plan_v${data.plan_version} · ${data.raw_text || ''}`, 'ok');
+                    break;
+                case 'munition_command':
+                    setMsg(`单弹指令：${data.munition_id} ${data.action} → ${data.state}`, 'ok');
+                    break;
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+
+        // 地图绘制
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        let worldState = null;
+        let gridDim = [40, 40, 20];
+
+        // 缩放和平移状态
+        let mapScale = 1.0;
+        let mapOffsetX = 0;
+        let mapOffsetY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragStartOffsetX = 0;
+        let dragStartOffsetY = 0;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            // 使用 clientWidth/clientHeight 获取容器实际显示尺寸
+            const cw = container.clientWidth;
+            const ch = container.clientHeight || 420;
+            canvas.width = cw;
+            canvas.height = ch;
+            if (worldState) drawMap();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        // 确保 DOM 布局完成后再调整
+        requestAnimationFrame(resizeCanvas);
+
+        function zoomMap(factor) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+
+            // 以画布中心为锚点缩放
+            mapOffsetX = cx - (cx - mapOffsetX) * factor;
+            mapOffsetY = cy - (cy - mapOffsetY) * factor;
+            mapScale *= factor;
+            mapScale = Math.max(0.2, Math.min(5.0, mapScale));
+
+            document.getElementById('zoomLevel').textContent = `${Math.round(mapScale * 100)}%`;
+            if (worldState) drawMap();
+        }
+
+        function resetMapView() {
+            mapScale = 1.0;
+            mapOffsetX = 0;
+            mapOffsetY = 0;
+            document.getElementById('zoomLevel').textContent = '100%';
+            if (worldState) drawMap();
+        }
+
+        // 鼠标交互
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragStartOffsetX = mapOffsetX;
+            dragStartOffsetY = mapOffsetY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            mapOffsetX = dragStartOffsetX + (e.clientX - dragStartX);
+            mapOffsetY = dragStartOffsetY + (e.clientY - dragStartY);
+            if (worldState) drawMap();
+        });
+
+        canvas.addEventListener('mouseup', () => { isDragging = false; });
+        canvas.addEventListener('mouseleave', () => { isDragging = false; });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 0.9;
+
+            mapOffsetX = mouseX - (mouseX - mapOffsetX) * factor;
+            mapOffsetY = mouseY - (mouseY - mapOffsetY) * factor;
+            mapScale *= factor;
+            mapScale = Math.max(0.2, Math.min(5.0, mapScale));
+
+            document.getElementById('zoomLevel').textContent = `${Math.round(mapScale * 100)}%`;
+            if (worldState) drawMap();
+        }, { passive: false });
+
+        function drawMap() {
+            const w = canvas.width;
+            const h = canvas.height;
+            // 先用背景色填充整个画布（避免 clearRect 在某些情况下残留）
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--surface-muted') || '#1e293b';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!worldState) {
+                ctx.fillStyle = '#888';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('等待态势数据...', w/2, h/2);
+                return;
+            }
+
+            ctx.save();
+            ctx.translate(mapOffsetX, mapOffsetY);
+            ctx.scale(mapScale, mapScale);
+
+            const [gx, gy] = gridDim;
+            const baseScaleX = w / gx;
+            const baseScaleY = h / gy;
+            const scale = Math.min(baseScaleX, baseScaleY);
+            const offsetX = (w - gx * scale) / 2;
+            const offsetY = (h - gy * scale) / 2;
+
+            // 绘制网格
+            ctx.strokeStyle = 'rgba(128,128,128,0.15)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= gx; i++) {
+                ctx.beginPath();
+                ctx.moveTo(offsetX + i * scale, offsetY);
+                ctx.lineTo(offsetX + i * scale, offsetY + gy * scale);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= gy; i++) {
+                ctx.beginPath();
+                ctx.moveTo(offsetX, offsetY + i * scale);
+                ctx.lineTo(offsetX + gx * scale, offsetY + i * scale);
+                ctx.stroke();
+            }
+
+            // 绘制区域
+            if (worldState.zones) {
+                for (const zone of worldState.zones) {
+                    const [x1, x2, y1, y2] = zone.bounds.slice(0, 4);
+                    const isEast = zone.id.includes('east') || zone.id.includes('A');
+                    ctx.fillStyle = isEast ? 'rgba(15, 220, 120, 0.08)' : 'rgba(128, 193, 255, 0.08)';
+                    ctx.strokeStyle = isEast ? 'rgba(15, 220, 120, 0.4)' : 'rgba(128, 193, 255, 0.4)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(offsetX + x1 * scale, offsetY + y1 * scale, (x2-x1) * scale, (y2-y1) * scale);
+                    ctx.strokeRect(offsetX + x1 * scale, offsetY + y1 * scale, (x2-x1) * scale, (y2-y1) * scale);
+                    ctx.setLineDash([]);
+
+                    // 区域标签
+                    ctx.fillStyle = isEast ? '#0FDC78' : '#80C1FF';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(zone.id, offsetX + (x1+x2)/2 * scale, offsetY + (y1+y2)/2 * scale - 10);
+
+                    // 覆盖率文字
+                    ctx.fillStyle = '#666';
+                    ctx.font = '11px sans-serif';
+                    ctx.fillText(`${(zone.coverage * 100).toFixed(0)}%`, offsetX + (x1+x2)/2 * scale, offsetY + (y1+y2)/2 * scale + 10);
+                }
+            }
+
+            // 绘制威胁
+            if (worldState.threats) {
+                for (const threat of worldState.threats) {
+                    const [x, y] = threat.position;
+                    const cx = offsetX + x * scale;
+                    const cy = offsetY + y * scale;
+
+                    // 威胁范围
+                    ctx.fillStyle = 'rgba(232, 70, 58, 0.12)';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = 'rgba(232, 70, 58, 0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // 威胁中心
+                    ctx.fillStyle = '#E8463A';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#E8463A';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(threat.id, cx, cy + 32);
+                }
+            }
+
+            // 绘制巡飞弹
+            if (worldState.munitions) {
+                for (const m of worldState.munitions) {
+                    const [x, y] = m.position;
+                    const cx = offsetX + x * scale;
+                    const cy = offsetY + y * scale;
+
+                    // 根据状态选择颜色
+                    let color = '#0FDC78'; // searching/idle
+                    if (m.state === 'destroyed') color = '#E8463A';
+                    else if (m.state === 'engaging') color = '#EFAA17';
+                    else if (m.state === 'returning') color = '#80C1FF';
+                    else if (m.state === 'lost_comms') color = '#888';
+
+                    // 弹体
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 选中框（如果有威胁向量）
+                    if (m.threat_vector && m.threat_vector.some(v => v > 0)) {
+                        ctx.strokeStyle = '#E8463A';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+
+                    // ID标签
+                    ctx.fillStyle = '#666';
+                    ctx.font = '9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(m.id, cx, cy - 10);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // 更新函数
+        function updateTick(data) {
+            document.getElementById('tickBadge').textContent = `TICK ${String(data.tick).padStart(3, '0')}`;
+            worldState = data.world;
+            drawMap();
+            updateSidebar(data);
+        }
+
+        function updateSidebar(data) {
+            // 区域覆盖率
+            if (data.world && data.world.zones) {
+                const container = document.getElementById('zoneCoverage');
+                container.innerHTML = data.world.zones.map(z => `
+                    <div class="stat-row">
+                        <span class="stat-label">${z.id}</span>
+                        <span class="stat-value">${(z.coverage * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${z.id.includes('B') ? 'secondary' : ''}" style="width: ${z.coverage * 100}%"></div>
+                    </div>
+                `).join('');
+            }
+
+            // 巡飞弹列表
+            if (data.world && data.world.munitions) {
+                const container = document.getElementById('munitionList');
+                container.innerHTML = data.world.munitions.map(m => `
+                    <div class="munition-item">
+                        <span class="munition-dot ${m.state}"></span>
+                        <span class="munition-name">${m.id}</span>
+                        <span class="munition-status">${translateState(m.state)}</span>
+                    </div>
+                `).join('');
+            }
+
+            // 威胁列表
+            if (data.world && data.world.threats) {
+                const container = document.getElementById('threatList');
+                if (data.world.threats.length === 0) {
+                    container.innerHTML = '<div class="empty-state">无威胁</div>';
+                } else {
+                    container.innerHTML = data.world.threats.map(t => `
+                        <div class="stat-row">
+                            <span class="stat-label">${t.id} [${t.kind}]</span>
+                            <span class="stat-value">(${t.position[0]},${t.position[1]})</span>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            // 计划信息
+            if (data.plan_version !== undefined) {
+                document.getElementById('planVersion').textContent = `v${data.plan_version}`;
+            }
+            if (data.replan_count !== undefined) {
+                document.getElementById('replanCount').textContent = data.replan_count;
+            }
+        }
+
+        function translateState(state) {
+            const map = {
+                'idle': '待命',
+                'assigned': '已分配',
+                'searching': '搜索中',
+                'engaging': '交战中',
+                'evading': '规避中',
+                'returning': '返航',
+                'destroyed': '已损毁',
+                'lost_comms': '失联'
+            };
+            return map[state] || state;
+        }
+
+        function addLLMRound(data) {
+            const container = document.getElementById('llmTimeline');
+            if (container.querySelector('.empty-state')) {
+                container.innerHTML = '';
+            }
+
+            document.getElementById('llmRoundLabel').textContent = `Round ${data.round}`;
+
+            const html = `
+                <div class="llm-round ${data.has_plan ? 'active' : ''}">
+                    <div class="llm-round-header">
+                        <span class="llm-round-num">R${data.round}</span>
+                        <span class="llm-round-label">${data.ctx_label || 'ReAct 规划'}</span>
+                    </div>
+                    ${data.content ? `<div class="llm-content">${escapeHtml(data.content.substring(0, 500))}</div>` : ''}
+                    ${data.tool_calls && data.tool_calls.length > 0 ? `
+                        <div class="llm-tools">
+                            ${data.tool_calls.map(tc => `<span class="tool-tag">${tc.name}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${data.has_plan ? '<div class="llm-plan-badge">已输出 BattlePlan</div>' : ''}
+                </div>
+            `;
+            container.insertAdjacentHTML('afterbegin', html);
+
+            // 限制数量
+            while (container.children.length > 10) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        // Jev 调用历史（按 task_id 存储最近的问题和答案）
+        const jevCallHistory = {};
+
+        function addJevCall(data) {
+            if (data.task_id) {
+                jevCallHistory[data.task_id] = {
+                    tick: data.tick,
+                    questions: data.questions || [],
+                    answers: data.answers || [],
+                };
+            }
+        }
+
+        function renderJevQuestions(taskId) {
+            const call = jevCallHistory[taskId];
+            if (!call || !call.questions || call.questions.length === 0) {
+                return '';
+            }
+
+            const answerMap = {};
+            if (call.answers) {
+                for (const a of call.answers) {
+                    answerMap[a.question_id] = a;
+                }
+            }
+
+            let html = '<div class="jev-questions">';
+            for (const q of call.questions) {
+                const a = answerMap[q.id];
+                const typeClass = q.type.replace('Question', '').toLowerCase();
+
+                html += `<div class="jev-question">`;
+                html += `<span class="jev-question-type ${typeClass}">${q.type.replace('Question', '')}</span>`;
+                html += `<span style="font-size:11px;color:var(--text-muted);">${q.id}</span>`;
+                html += `<div class="jev-question-prompt">${escapeHtml(q.prompt)}</div>`;
+
+                if (a) {
+                    if (q.type === 'ChoiceQuestion' && a.probabilities) {
+                        html += '<div class="jev-options">';
+                        for (const [opt, prob] of Object.entries(a.probabilities)) {
+                            const isChosen = opt === a.chosen;
+                            html += `<span class="jev-option ${isChosen ? 'chosen' : ''}">${opt} (${(prob*100).toFixed(0)}%)</span>`;
+                        }
+                        html += '</div>';
+                        html += `<div class="jev-question-answer highlight">选择: ${a.chosen} | 置信度: ${a.confidence.toFixed(2)}</div>`;
+                    } else if (q.type === 'NoulQuestion' && a.probability !== undefined) {
+                        const prob = a.probability;
+                        const isYes = prob > 0.5;
+                        html += `<div class="jev-question-answer ${isYes ? 'highlight' : 'normal'}">`;
+                        html += `${isYes ? '是' : '否'} (${(prob*100).toFixed(0)}%) | 置信度: ${a.confidence.toFixed(2)}`;
+                        html += '</div>';
+                    } else if (q.type === 'ScoreQuestion' && a.value !== undefined) {
+                        html += `<div class="jev-question-answer highlight">评分: ${a.value.toFixed(2)} | 置信度: ${a.confidence.toFixed(2)}</div>`;
+                    }
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function updateMonitoringTasks(tasks) {
+            const container = document.getElementById('jevTasks');
+            document.getElementById('jevTaskCount').textContent = `${tasks.length} 个任务`;
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无监控任务</div>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(t => {
+                const statusClass = t.status === 'active' ? 'active' : (t.status === 'escalated' ? 'escalated' : '');
+                const result = t.last_result;
+                let branchHtml = '';
+                let confidenceHtml = '';
+
+                if (result && result.type === 'ChoiceAnswer' && result.probabilities) {
+                    const options = Object.keys(result.probabilities);
+                    branchHtml = `
+                        <div class="branch-options">
+                            ${options.map(opt => `
+                                <div class="branch-btn ${opt === result.chosen ? 'selected' : ''}">${opt}</div>
+                            `).join('')}
+                        </div>
+                    `;
+                    confidenceHtml = `<div class="jev-confidence ${result.confidence >= 0.7 ? 'high' : 'low'}">置信度: ${result.confidence.toFixed(2)} · 本轮选择: ${result.chosen}</div>`;
+                } else if (result && result.type === 'NoulAnswer') {
+                    branchHtml = `
+                        <div class="branch-options">
+                            <div class="branch-btn ${result.probability > 0.5 ? 'selected' : ''}">是 (${(result.probability * 100).toFixed(0)}%)</div>
+                            <div class="branch-btn ${result.probability <= 0.5 ? 'selected' : ''}">否 (${((1 - result.probability) * 100).toFixed(0)}%)</div>
+                        </div>
+                    `;
+                    confidenceHtml = `<div class="jev-confidence ${result.confidence >= 0.7 ? 'high' : 'low'}">置信度: ${result.confidence.toFixed(2)}</div>`;
+                } else if (result && result.type === 'ScoreAnswer') {
+                    branchHtml = `
+                        <div class="branch-options">
+                            <div class="branch-btn selected">评分: ${result.value.toFixed(2)}</div>
+                        </div>
+                    `;
+                    confidenceHtml = `<div class="jev-confidence ${result.confidence >= 0.7 ? 'high' : 'low'}">置信度: ${result.confidence.toFixed(2)}</div>`;
+                }
+
+                const questionsHtml = renderJevQuestions(t.task_id);
+
+                return `
+                    <div class="jev-task ${statusClass}">
+                        <div class="jev-task-header">
+                            <span class="jev-task-id">${t.task_id}</span>
+                            <span class="jev-task-status ${statusClass}">${translateTaskStatus(t.status)}</span>
+                        </div>
+                        <div class="jev-task-meta">主体: ${t.subject} | 周期: ${t.schedule_every_ticks}t | 计划: v${t.owner_plan_version}</div>
+                        ${branchHtml}
+                        ${confidenceHtml}
+                        ${questionsHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function translateTaskStatus(status) {
+            const map = {
+                'pending': '待启动',
+                'active': '监控中',
+                'paused': '已暂停',
+                'escalated': '已升级',
+                'completed': '已完成',
+                'cancelled': '已取消'
+            };
+            return map[status] || status;
+        }
+
+        function updatePlan(data) {
+            document.getElementById('planVersion').textContent = `v${data.plan_version || '-'}`;
+            document.getElementById('planPhase').textContent = data.phase || '-';
+        }
+
+        function updatePhase(phase) {
+            document.getElementById('phaseLabel').textContent = phase;
+        }
+
+        function addEscalation(data) {
+            // 可以添加一个升级事件通知
+            console.log('Escalation:', data);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // === 运行控制（REST API 交互，无需鉴权）===
+        const ctrlMsg = document.getElementById('ctrlMsg');
+        let ctrlBusy = false;
+
+        function setMsg(text, kind) {
+            ctrlMsg.textContent = text;
+            ctrlMsg.className = 'ctrl-msg' + (kind ? ' ' + kind : '');
+        }
+
+        async function api(path, opts) {
+            const resp = await fetch(path, Object.assign(
+                { headers: { 'Content-Type': 'application/json' } }, opts
+            ));
+            let body = null;
+            try { body = await resp.json(); } catch (e) { body = null; }
+            if (!resp.ok) {
+                const detail = (body && body.detail) ? body.detail : resp.statusText;
+                throw new Error(`${resp.status} ${detail}`);
+            }
+            return body;
+        }
+
+        async function loadScenarios() {
+            try {
+                const data = await api('/api/scenarios');
+                document.getElementById('scenarioSelect').innerHTML = data.scenarios.map(s =>
+                    `<option value="${s.key}">${s.key} · ${s.description}</option>`
+                ).join('');
+            } catch (e) {
+                setMsg('场景列表加载失败：' + e.message, 'err');
+            }
+        }
+
+        function updateCtrlStatus(runtime, scenario) {
+            const pill = document.getElementById('ctrlRunState');
+            let label = '未运行', cls = 'stopped';
+            if (runtime && runtime.safe_mode) { label = '安全模式'; cls = 'safe'; }
+            else if (runtime && runtime.running && runtime.paused) { label = '已暂停'; cls = 'paused'; }
+            else if (runtime && runtime.running) { label = '运行中'; cls = 'running'; }
+            pill.textContent = label;
+            pill.className = 'status-pill ' + cls;
+
+            if (scenario !== undefined) {
+                document.getElementById('ctrlScenario').textContent = scenario || '-';
+            }
+            if (runtime && runtime.speed !== undefined) {
+                document.getElementById('ctrlSpeedPill').textContent = Number(runtime.speed).toFixed(1) + 'x';
+            }
+        }
+
+        async function refreshCtrlStatus() {
+            try {
+                const state = await api('/api/state');
+                updateCtrlStatus(state.runtime, state.scenario);
+            } catch (e) { /* Web 服务未就绪时忽略 */ }
+        }
+
+        async function withBusy(label, fn) {
+            if (ctrlBusy) return undefined;
+            ctrlBusy = true;
+            setMsg(label + ' ...');
+            try {
+                const res = await fn();
+                setMsg(label + ' 成功' + (res && res.status ? `（${res.status}）` : ''), 'ok');
+                return res;
+            } catch (e) {
+                setMsg(label + ' 失败：' + e.message, 'err');
+                return undefined;
+            } finally {
+                ctrlBusy = false;
+                refreshCtrlStatus();
+            }
+        }
+
+        document.getElementById('btnLoadScenario').addEventListener('click', () => {
+            const key = document.getElementById('scenarioSelect').value;
+            withBusy('加载场景', () => api('/api/scenarios/load',
+                { method: 'POST', body: JSON.stringify({ scenario: key }) }));
+        });
+
+        document.getElementById('btnStart').addEventListener('click', () => {
+            withBusy('启动任务', () => api('/api/run/start', { method: 'POST', body: '{}' }));
+        });
+
+        document.getElementById('btnPause').addEventListener('click', () => {
+            withBusy('暂停', () => api('/api/runtime/pause', { method: 'POST', body: '{}' }));
+        });
+
+        document.getElementById('btnResume').addEventListener('click', () => {
+            withBusy('恢复', () => api('/api/runtime/resume', { method: 'POST', body: '{}' }));
+        });
+
+        document.getElementById('btnStop').addEventListener('click', () => {
+            withBusy('停止', () => api('/api/runtime/stop', { method: 'POST', body: '{}' }));
+        });
+
+        document.getElementById('speedSelect').addEventListener('change', (e) => {
+            const speed = parseFloat(e.target.value);
+            withBusy('设置倍速', () => api('/api/runtime/speed',
+                { method: 'POST', body: JSON.stringify({ speed }) }));
+        });
+
+        document.getElementById('btnSafeMode').addEventListener('click', () => {
+            if (!confirm('确认强制进入安全模式（全员返航）？')) return;
+            withBusy('强制安全模式', () => api('/api/safe-mode',
+                { method: 'POST', body: JSON.stringify({ reason: 'web_ui' }) }));
+        });
+
+        document.getElementById('btnNewIntent').addEventListener('click', async () => {
+            const input = document.getElementById('intentInput');
+            const raw = input.value.trim();
+            if (!raw) { setMsg('请输入新的意图文本', 'err'); return; }
+            const res = await withBusy('下发新任务', () => api('/api/intents',
+                { method: 'POST', body: JSON.stringify({ raw_text: raw, mode: 'replace' }) }));
+            if (res) input.value = '';
+        });
+
+        document.getElementById('btnInjectEvent').addEventListener('click', () => {
+            const etype = document.getElementById('eventType').value;
+            const raw = document.getElementById('eventParams').value.trim();
+            const payload = { event_type: etype };
+            if (etype === 'comm_loss') {
+                payload.munition_ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+                if (payload.munition_ids.length === 0) { setMsg('请输入失联弹 ID（逗号分隔）', 'err'); return; }
+            } else if (etype === 'damage') {
+                if (!raw) { setMsg('请输入损毁弹 ID', 'err'); return; }
+                payload.munition_id = raw;
+            } else {
+                payload.target_id = raw || null;
+                payload.status = 'lost';
+            }
+            withBusy('注入事件', () => api('/api/events/inject',
+                { method: 'POST', body: JSON.stringify(payload) }));
+        });
+
+        loadScenarios();
+        refreshCtrlStatus();
+        setInterval(refreshCtrlStatus, 2000);
+
+        // 初始连接
+        connect();
+
+        // 定期请求状态（作为 WebSocket 的备份）
+        setInterval(() => {
+            fetch('/api/state')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.tick > 0) {
+                        document.getElementById('tickBadge').textContent = `TICK ${String(data.tick).padStart(3, '0')}`;
+                    }
+                })
+                .catch(() => {});
+        }, 5000);
+    </script>
+</body>
+</html>
