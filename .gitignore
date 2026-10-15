@@ -31,12 +31,12 @@ C:\Users\61646\AppData\Local\Temp\
 *.doc
 *.docx
 *.pdf
-*.md
 
-# 特别说明：根目录下的 "推进思路.md" / "任务调度引擎-双环决策架构.pptx"
-# 属于内部设计文档，不纳入仓库
+# 内部设计文档（默认排除所有 .md，但保留根目录 README.md）
 推进思路.md
 任务调度引擎-双环决策架构.pptx
+*.md
+!/README.md
 
 # === OS ===
 .DS_Store
